@@ -2,6 +2,20 @@
 
 A high-performance web-based aim trainer built with **Three.js**. Practice your precision and speed directly in your browser.
 
+## Deployment
+
+The project is live at: [**https://afnanww.github.io/gridshotto/**](https://afnanww.github.io/gridshotto/)
+
+To run locally, simply open `index.html` in any modern web browser. Requires an internet connection to load the `Three.js` library.
+
+## Features
+
+- **Gridshot Mode**: Classic aim training with adaptive scoring (+500 on hits, -150 on misses).
+- **Multiple Session Types**: Choose between 1-minute focused practice or infinite Free Play.
+- **Sensitivity Presets**: Supports Valorant and CS2/Source sensitivity scaling.
+- **Customizable Crosshairs**: Select between Dot, Classic Plus, and Gap styles with full color control.
+- **Theme Support**: Adaptive Dark and Light modes for any lighting environment.
+
 ## Technical Documentation
 
 This project is a single-page application (SPA) that uses **Three.js** to create a 3D environment for aim training. Below is a detailed breakdown of how the code works.
@@ -139,12 +153,6 @@ function shoot() {
 -   **Raycaster**: Projects a line from the camera center (0,0) into the 3D space.
 -   **Hit Detection**: Checks for intersections with the `targets` array. If the first intersected object is a target, it's a hit.
 -   **Scoring**: Adds 500 points for hits and subtracts 150 for misses, mirroring the "Aim Lab Gridshot" scoring model.
-
-## Deployment
-
-The project is live at: [**https://afnanww.github.io/gridshotto/**](https://afnanww.github.io/gridshotto/)
-
-To run locally, simply open `index.html` in any modern web browser. Requires an internet connection to load the `Three.js` library.
 
 ---
 
