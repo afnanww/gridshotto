@@ -10,7 +10,8 @@ A high-performance web-based aim trainer built with **Three.js**. Practice your 
 - **Theme Support**: Adaptive Dark and Light modes for any lighting environment.
 
 ## Deployment
-This project is deployed using GitHub Pages. 
+This project is live at: [https://afnanww.github.io/gridshotto/](https://afnanww.github.io/gridshotto/)
+
 To run locally, simply open `index.html` in any modern web browser.
 
 ---
