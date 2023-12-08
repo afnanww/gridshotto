@@ -1,7 +1,5 @@
 # Gridshotto
 
-> **Last Updated: 8 December 2023**
-
 A high-performance web-based aim trainer built with **Three.js**. Practice your precision and speed directly in your browser.
 
 ## Technical Documentation
@@ -147,3 +145,10 @@ function shoot() {
 The project is live at: [**https://afnanww.github.io/gridshotto/**](https://afnanww.github.io/gridshotto/)
 
 To run locally, simply open `index.html` in any modern web browser. Requires an internet connection to load the `Three.js` library.
+
+---
+
+## Meta Information
+**Last Updated**: 8 December 2023
+**Developer**: afnanww  
+**Web Name**: Gridshotto
