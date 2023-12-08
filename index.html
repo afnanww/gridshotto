@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gridshotto</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --text-color: #ffffff;
+            --ui-accent: #2563eb;
+            --panel: rgba(0, 0, 0, 0.9);
+            --input-bg: #222;
+            --ch-color: #2563eb;
+        }
+
+        .light-theme {
+            --bg: #f0f2f5;
+            --text-color: #000000;
+            --ui-accent: #2563eb;
+            --panel: rgba(255, 255, 255, 0.95);
+            --input-bg: #e5e7eb;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .stat {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        #score-box {
+            top: 50px;
+            left: 50px;
+        }
+
+        #time-box {
+            top: 50px;
+            right: 50px;
+            align-items: flex-end;
+        }
+
+        #accuracy-box {
+            bottom: 50px;
+            left: 50px;
+        }
+
+        .label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: 300;
+            color: var(--text-color) !important;
+            opacity: 0.5;
+        }
+
+        .val {
+            font-size: 52px;
+            font-weight: 700;
+            line-height: 1;
+            margin-top: 4px;
+            color: var(--text-color) !important;
+        }
+
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-weight: 900;
+            color: var(--text-color);
+            display: none;
+            z-index: 100;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        #crosshair-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .ch-part {
+            position: absolute;
+            background: var(--ch-color) !important;
+        }
+
+        .style-dot .ch-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .style-plus .ch-v {
+            width: 2px;
+            height: 14px;
+        }
+
+        .style-plus .ch-h {
+            width: 14px;
+            height: 2px;
+        }
+
+        .style-gap .ch-t {
+            width: 2px;
+            height: 6px;
+            transform: translateY(-6px);
+        }
+
+        .style-gap .ch-b {
+            width: 2px;
+            height: 6px;
+            transform: translateY(6px);
+        }
+
+        .style-gap .ch-l {
+            width: 6px;
+            height: 2px;
+            transform: translateX(-6px);
+        }
+
+        .style-gap .ch-r {
+            width: 6px;
+            height: 2px;
+            transform: translateX(6px);
+        }
+
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel);
+            padding: 30px;
+            text-align: center;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            pointer-events: all;
+            border-radius: 12px;
+            min-width: 360px;
+            backdrop-filter: blur(10px);
+            color: var(--text-color) !important;
+            z-index: 101;
+        }
+
+        .setting-row {
+            margin: 18px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-group {
+            display: flex;
+            background: var(--input-bg);
+            padding: 4px;
+            border-radius: 8px;
+            gap: 4px;
+        }
+
+        .choice-btn {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            opacity: 0.4;
+            transition: 0.2s;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .choice-btn.active {
+            opacity: 1;
+            background: var(--ui-accent);
+            color: white;
+        }
+
+        .theme-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--text-color) !important;
+        }
+
+        .theme-btn.active svg {
+            fill: #ffffff !important;
+        }
+
+        .ch-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .ch-card {
+            flex: 1;
+            background: var(--input-bg);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .ch-card.active {
+            border-color: var(--ui-accent);
+        }
+
+        .ch-card span {
+            font-size: 10px;
+            display: block;
+            margin-top: 10px;
+            color: var(--text-color) !important;
+            font-weight: bold;
+        }
+
+        .ch-preview {
+            height: 15px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ch-preview .ch-part {
+            background: var(--text-color) !important;
+        }
+
+        .main-btn {
+            background: var(--ui-accent);
+            color: #ffffff;
+            border: none;
+            padding: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            padding: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
+            margin-top: 10px;
+            opacity: 0.7;
+        }
+
+        select,
+        input {
+            background: var(--input-bg);
+            color: var(--text-color) !important;
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        #results-content {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui">
+        <div id="countdown"></div>
+        <div id="score-box" class="stat"><span class="label">Score</span><span id="score" class="val">0</span></div>
+        <div id="time-box" class="stat"><span class="label">Time Remaining</span><span id="timer"
+                class="val">01:00</span></div>
+        <div id="accuracy-box" class="stat"><span class="label">Accuracy</span><span id="accuracy" class="val">0%</span>
+        </div>
+
+        <div id="crosshair-container" class="style-dot">
+            <div class="ch-part ch-dot"></div>
+            <div class="ch-part ch-v"></div>
+            <div class="ch-part ch-h"></div>
+            <div class="ch-part ch-t"></div>
+            <div class="ch-part ch-b"></div>
+            <div class="ch-part ch-l"></div>
+            <div class="ch-part ch-r"></div>
+        </div>
+    </div>
+
+    <div id="menu">
+        <div id="settings-content">
+            <h2 style="margin:0 0 20px 0; letter-spacing: 2px;">GRIDSHOTTO</h2>
+            <div class="setting-row">
+                <label>Appearance</label>
+                <div class="btn-group">
+                    <div class="choice-btn theme-btn" id="btn-dark"><svg viewBox="0 0 24 24">
+                            <path
+                                d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+                        </svg></div>
+                    <div class="choice-btn theme-btn active" id="btn-light"><svg viewBox="0 0 24 24">
+                            <path
+                                d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z" />
+                        </svg></div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <label>Session Type</label>
+                <div class="btn-group">
+                    <div class="choice-btn session-btn active" data-val="60">1 MINUTE</div>
+                    <div class="choice-btn session-btn" data-val="999999">FREE PLAY</div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <label>Sensitivity</label>
+                <div style="display:flex; gap:5px;">
+                    <select id="sensEngine">
+                        <option value="1">Valorant</option>
+                        <option value="3.1818">CS2 / Source</option>
+                    </select>
+                    <input type="number" id="sensInput" value="1.0" step="0.1" style="width: 50px;">
+                </div>
+            </div>
+            <div style="text-align:left; margin-top:20px;">
+                <label style="font-size: 11px; letter-spacing: 1px;">Crosshair Style</label>
+                <div class="ch-selector">
+                    <div class="ch-card active" data-style="style-dot">
+                        <div class="ch-preview style-dot">
+                            <div class="ch-part ch-dot"></div>
+                        </div><span>DOT</span>
+                    </div>
+                    <div class="ch-card" data-style="style-plus">
+                        <div class="ch-preview style-plus">
+                            <div class="ch-part ch-v"></div>
+                            <div class="ch-part ch-h"></div>
+                        </div><span>CLASSIC</span>
+                    </div>
+                    <div class="ch-card" data-style="style-gap">
+                        <div class="ch-preview style-gap">
+                            <div class="ch-part ch-t"></div>
+                            <div class="ch-part ch-b"></div>
+                            <div class="ch-part ch-l"></div>
+                            <div class="ch-part ch-r"></div>
+                        </div><span>GAP</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-row" style="margin-top:15px;">
+                <label>Crosshair Color</label>
+                <input type="color" id="chColorInput" value="#2563eb">
+            </div>
+            <button id="startBtn" class="main-btn">START SESSION</button>
+        </div>
+
+        <div id="results-content">
+            <h2 style="margin:0; opacity: 0.5; font-size: 14px; letter-spacing: 2px;">SESSION ENDED</h2>
+            <div style="margin: 20px 0;">
+                <span style="font-size: 14px; opacity: 0.6; text-transform: uppercase;">Final Score</span>
+                <div id="res-score" style="font-size: 64px; font-weight: 800;">0</div>
+                <span id="res-acc" style="font-size: 18px; font-weight: 600; opacity: 0.8;">Accuracy: 0%</span>
+            </div>
+            <button id="retryBtn" class="main-btn">RETRY SESSION</button>
+            <button id="mainMenuBtn" class="secondary-btn">MAIN MENU</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0, shots = 0, hits = 0, timeLeft = 60, gameActive = false, currentTheme = 'light';
+        let lastHitIndex = -1, targets = [], selectedSessionTime = 60, countdownActive = false, gameTimer;
+
+        let audioCtx;
+        function playSound(freq, type, duration, vol) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const wallMat = new THREE.MeshPhongMaterial({ color: 0xdddddd });
+        const floor = new THREE.Mesh(new THREE.BoxGeometry(40, 1, 40), wallMat);
+        floor.position.y = -3; scene.add(floor);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+        const texLoader = new THREE.TextureLoader();
+        texLoader.setCrossOrigin("Anonymous");
+        const memeUrl = 'images.jfif';
+        const memeGeo = new THREE.PlaneGeometry(6, 6);
+        const memeMat = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+        texLoader.load(memeUrl, (tex) => { memeMat.map = tex; memeMat.color.set(0xffffff); memeMat.needsUpdate = true; });
+        const memeMesh = new THREE.Mesh(memeGeo, memeMat);
+        memeMesh.position.set(0, 0, 10); scene.add(memeMesh);
+
+        const gridPositions = [];
+        for (let x = -2.25; x <= 2.25; x += 1.5) {
+            for (let y = -1.5; y <= 1.5; y += 1.5) gridPositions.push({ x: x, y: y });
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            const isLight = theme === 'light';
+            document.body.classList.toggle('light-theme', isLight);
+            scene.background = new THREE.Color(isLight ? 0xf0f2f5 : 0x0b0e14);
+            wallMat.color.set(isLight ? 0xdddddd : 0x1a1a1a);
+            document.getElementById('btn-dark').classList.toggle('active', !isLight);
+            document.getElementById('btn-light').classList.toggle('active', isLight);
+        }
+
+        document.getElementById('btn-dark').onclick = () => setTheme('dark');
+        document.getElementById('btn-light').onclick = () => setTheme('light');
+
+        document.querySelectorAll('.session-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.session-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedSessionTime = parseInt(btn.dataset.val);
+            };
+        });
+
+        document.querySelectorAll('.ch-card').forEach(card => {
+            card.onclick = () => {
+                document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                document.getElementById('crosshair-container').className = card.dataset.style;
+            };
+        });
+
+        document.getElementById('chColorInput').oninput = (e) => {
+            document.documentElement.style.setProperty('--ch-color', e.target.value);
+        };
+
+        let yaw = 0, pitch = 0;
+        document.onmousemove = (e) => {
+            if (document.pointerLockElement === document.body && (gameActive || countdownActive)) {
+                const engine = parseFloat(document.getElementById('sensEngine').value);
+                const sensInput = parseFloat(document.getElementById('sensInput').value) || 1;
+                const sens = (sensInput / engine) * 0.0065;
+                yaw -= e.movementX * sens;
+                pitch -= e.movementY * sens;
+                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+                camera.rotation.order = "YXZ";
+                camera.rotation.set(pitch, yaw, 0);
+            }
+        };
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement !== document.body && gameActive) endSession();
+        });
+
+        function spawnTarget() {
+            const isLight = currentTheme === 'light';
+            const sphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 32, 32),
+                new THREE.MeshPhongMaterial({ color: isLight ? 0x000000 : 0xffffff, emissive: isLight ? 0x000000 : 0x333333 })
+            );
+            let avail = gridPositions.map((_, i) => i).filter(i => !targets.some(t => t.userData.gridIndex === i) && i !== lastHitIndex);
+            if (avail.length === 0) avail = [0];
+            const idx = avail[Math.floor(Math.random() * avail.length)];
+            sphere.position.set(gridPositions[idx].x, gridPositions[idx].y, -6);
+            sphere.userData.gridIndex = idx;
+            sphere.scale.set(0.1, 0.1, 0.1);
+            scene.add(sphere); targets.push(sphere);
+        }
+
+        // --- GRIDSHOT SCORING LOGIC ---
+        function shoot() {
+            if (!gameActive) return;
+            shots++;
+            playSound(150, 'square', 0.05, 0.05);
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const hit = raycaster.intersectObjects(targets)[0];
+
+            if (hit) {
+                lastHitIndex = hit.object.userData.gridIndex;
+                scene.remove(hit.object);
+                targets.splice(targets.indexOf(hit.object), 1);
+                hits++;
+
+                // Aim Lab Gridshot: +500 per hit
+                score += 500;
+
+                playSound(600, 'sine', 0.1, 0.1);
+                spawnTarget();
+            } else {
+                // Aim Lab Gridshot: -150 per miss (Floor at 0)
+                score = Math.max(0, score - 150);
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('score').innerText = score.toLocaleString();
+            const acc = shots === 0 ? 0 : Math.round((hits / shots) * 100);
+            document.getElementById('accuracy').innerText = acc + "%";
+        }
+
+        function initiateStart() {
+            document.getElementById('menu').style.display = 'none';
+            document.body.requestPointerLock();
+            countdownActive = true;
+            const cdEl = document.getElementById('countdown');
+            cdEl.style.display = 'block';
+            let count = 3;
+            cdEl.innerText = count;
+            playSound(400, 'sine', 0.1, 0.1);
+            const cdInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    cdEl.innerText = count;
+                    playSound(400, 'sine', 0.1, 0.1);
+                } else {
+                    clearInterval(cdInterval);
+                    cdEl.style.display = 'none';
+                    countdownActive = false;
+                    startSession();
+                }
+            }, 1000);
+        }
+
+        function startSession() {
+            score = 0; shots = 0; hits = 0;
+            timeLeft = selectedSessionTime;
+            gameActive = true;
+            updateUI();
+            while (targets.length > 0) scene.remove(targets.pop());
+            for (let i = 0; i < 3; i++) spawnTarget();
+            gameTimer = setInterval(() => {
+                if (!gameActive) { clearInterval(gameTimer); return; }
+                if (selectedSessionTime > 3600) {
+                    document.getElementById('timer').innerText = "∞";
+                } else {
+                    timeLeft--;
+                    document.getElementById('timer').innerText = `00:${timeLeft.toString().padStart(2, '0')}`;
+                    if (timeLeft <= 0) endSession();
+                }
+            }, 1000);
+        }
+
+        function endSession() {
+            gameActive = false;
+            clearInterval(gameTimer);
+            document.exitPointerLock();
+            document.getElementById('settings-content').style.display = 'none';
+            document.getElementById('results-content').style.display = 'block';
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('res-score').innerText = score.toLocaleString();
+            document.getElementById('res-acc').innerText = "Accuracy: " + document.getElementById('accuracy').innerText;
+        }
+
+        document.getElementById('startBtn').onclick = initiateStart;
+        document.getElementById('retryBtn').onclick = initiateStart;
+        document.getElementById('mainMenuBtn').onclick = () => {
+            document.getElementById('results-content').style.display = 'none';
+            document.getElementById('settings-content').style.display = 'block';
+        };
+
+        window.onmousedown = (e) => { if (e.button === 0) shoot(); };
+        window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+        function animate() { requestAnimationFrame(animate); targets.forEach(t => t.scale.lerp(new THREE.Vector3(1, 1, 1), 0.2)); renderer.render(scene, camera); }
+        animate();
+        setTheme('light');
+    </script>
+</body>
+
+</html>
