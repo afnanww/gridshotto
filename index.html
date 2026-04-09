@@ -297,6 +297,7 @@
                 class="val">01:00</span></div>
         <div id="accuracy-box" class="stat"><span class="label">Accuracy</span><span id="accuracy" class="val">0%</span>
         </div>
+        <div id="fps-display" style="position:absolute; bottom:20px; right:20px; font-weight:bold; color:var(--text-color); font-size:14px; opacity:0.3; display:none; pointer-events:none;">0 FPS</div>
 
         <div id="crosshair-container" class="style-dot">
             <div class="ch-part ch-dot"></div>
@@ -312,7 +313,13 @@
     <div id="menu">
         <div id="settings-content">
             <h2 style="margin:0 0 5px 0; letter-spacing: 2px;">GRIDSHOTTO</h2>
-            <p style="font-size: 10px; opacity: 0.5; margin: 0 0 20px 0;">Updated: 8 December 2023</p>
+            <div style="display: flex; justify-content: center; gap: 6px; margin-bottom: 20px; align-items: center; opacity: 0.7;">
+                <span style="font-size: 9px; letter-spacing: 1px;">FPS</span>
+                <div class="btn-group" style="padding: 2px; border-radius: 4px;">
+                    <div class="choice-btn fps-btn" data-val="on" style="padding: 2px 6px; font-size: 9px;">ON</div>
+                    <div class="choice-btn fps-btn active" data-val="off" style="padding: 2px 6px; font-size: 9px;">OFF</div>
+                </div>
+            </div>
             <div class="setting-row">
                 <label>Appearance</label>
                 <div class="btn-group">
@@ -405,14 +412,13 @@
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const wallMat = new THREE.MeshPhongMaterial({ color: 0xdddddd });
+        const wallMat = new THREE.MeshBasicMaterial({ color: 0xb0b0b0 });
         const floor = new THREE.Mesh(new THREE.BoxGeometry(40, 1, 40), wallMat);
         floor.position.y = -3; scene.add(floor);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
         const texLoader = new THREE.TextureLoader();
         texLoader.setCrossOrigin("Anonymous");
@@ -427,19 +433,30 @@
         for (let x = -2.25; x <= 2.25; x += 1.5) {
             for (let y = -1.5; y <= 1.5; y += 1.5) gridPositions.push({ x: x, y: y });
         }
+        const ALL_INDICES = gridPositions.map((_, i) => i);
 
         function setTheme(theme) {
             currentTheme = theme;
             const isLight = theme === 'light';
             document.body.classList.toggle('light-theme', isLight);
             scene.background = new THREE.Color(isLight ? 0xf0f2f5 : 0x0b0e14);
-            wallMat.color.set(isLight ? 0xdddddd : 0x1a1a1a);
+            wallMat.color.set(isLight ? 0xb0b0b0 : 0x151515);
             document.getElementById('btn-dark').classList.toggle('active', !isLight);
             document.getElementById('btn-light').classList.toggle('active', isLight);
         }
 
         document.getElementById('btn-dark').onclick = () => setTheme('dark');
         document.getElementById('btn-light').onclick = () => setTheme('light');
+
+        let showFps = false;
+        document.querySelectorAll('.fps-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.fps-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                showFps = btn.dataset.val === 'on';
+                document.getElementById('fps-display').style.display = showFps ? 'block' : 'none';
+            };
+        });
 
         document.querySelectorAll('.session-btn').forEach(btn => {
             btn.onclick = () => {
@@ -461,14 +478,22 @@
             document.documentElement.style.setProperty('--ch-color', e.target.value);
         };
 
-        let yaw = 0, pitch = 0;
+        let yaw = 0, pitch = 0, cachedSens = 0.0065;
+
+        function updateSens() {
+            const engine = parseFloat(document.getElementById('sensEngine').value);
+            const sensInput = parseFloat(document.getElementById('sensInput').value) || 1;
+            cachedSens = (sensInput / engine) * 0.0065;
+        }
+
+        document.getElementById('sensEngine').addEventListener('change', updateSens);
+        document.getElementById('sensInput').addEventListener('input', updateSens);
+        updateSens();
+
         document.onmousemove = (e) => {
             if (document.pointerLockElement === document.body && (gameActive || countdownActive)) {
-                const engine = parseFloat(document.getElementById('sensEngine').value);
-                const sensInput = parseFloat(document.getElementById('sensInput').value) || 1;
-                const sens = (sensInput / engine) * 0.0065;
-                yaw -= e.movementX * sens;
-                pitch -= e.movementY * sens;
+                yaw -= e.movementX * cachedSens;
+                pitch -= e.movementY * cachedSens;
                 pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
                 camera.rotation.order = "YXZ";
                 camera.rotation.set(pitch, yaw, 0);
@@ -479,13 +504,14 @@
             if (document.pointerLockElement !== document.body && gameActive) endSession();
         });
 
+        const targetGeo = new THREE.SphereGeometry(0.4, 32, 32);
+        const targetMatLight = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const targetMatDark = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
         function spawnTarget() {
             const isLight = currentTheme === 'light';
-            const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.4, 32, 32),
-                new THREE.MeshPhongMaterial({ color: isLight ? 0x000000 : 0xffffff, emissive: isLight ? 0x000000 : 0x333333 })
-            );
-            let avail = gridPositions.map((_, i) => i).filter(i => !targets.some(t => t.userData.gridIndex === i) && i !== lastHitIndex);
+            const sphere = new THREE.Mesh(targetGeo, isLight ? targetMatLight : targetMatDark);
+            let avail = ALL_INDICES.filter(i => !targets.some(t => t.userData.gridIndex === i) && i !== lastHitIndex);
             if (avail.length === 0) avail = [0];
             const idx = avail[Math.floor(Math.random() * avail.length)];
             sphere.position.set(gridPositions[idx].x, gridPositions[idx].y, -6);
@@ -494,26 +520,35 @@
             scene.add(sphere); targets.push(sphere);
         }
 
+        const raycaster = new THREE.Raycaster();
+        const screenCenter = new THREE.Vector2(0, 0);
+
         // --- GRIDSHOT SCORING LOGIC ---
         function shoot() {
             if (!gameActive) return;
             shots++;
             playSound(150, 'square', 0.05, 0.05);
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const hit = raycaster.intersectObjects(targets)[0];
+            raycaster.setFromCamera(screenCenter, camera);
+            const hit = raycaster.intersectObjects(targets, false)[0];
 
             if (hit) {
                 lastHitIndex = hit.object.userData.gridIndex;
-                scene.remove(hit.object);
-                targets.splice(targets.indexOf(hit.object), 1);
                 hits++;
 
                 // Aim Lab Gridshot: +500 per hit
                 score += 500;
 
                 playSound(600, 'sine', 0.1, 0.1);
-                spawnTarget();
+                
+                // Object Pool: Reposition hit target instead of destroying
+                let avail = ALL_INDICES.filter(i => 
+                    !targets.some(t => t !== hit.object && t.userData.gridIndex === i) && i !== lastHitIndex
+                );
+                if (avail.length === 0) avail = [0];
+                const idx = avail[Math.floor(Math.random() * avail.length)];
+                hit.object.position.set(gridPositions[idx].x, gridPositions[idx].y, -6);
+                hit.object.userData.gridIndex = idx;
+                hit.object.scale.set(0.1, 0.1, 0.1);
             } else {
                 // Aim Lab Gridshot: -150 per miss (Floor at 0)
                 score = Math.max(0, score - 150);
@@ -522,9 +557,9 @@
         }
 
         function updateUI() {
-            document.getElementById('score').innerText = score.toLocaleString();
+            document.getElementById('score').textContent = score.toLocaleString();
             const acc = shots === 0 ? 0 : Math.round((hits / shots) * 100);
-            document.getElementById('accuracy').innerText = acc + "%";
+            document.getElementById('accuracy').textContent = acc + "%";
         }
 
         function initiateStart() {
@@ -534,12 +569,12 @@
             const cdEl = document.getElementById('countdown');
             cdEl.style.display = 'block';
             let count = 3;
-            cdEl.innerText = count;
+            cdEl.textContent = count;
             playSound(400, 'sine', 0.1, 0.1);
             const cdInterval = setInterval(() => {
                 count--;
                 if (count > 0) {
-                    cdEl.innerText = count;
+                    cdEl.textContent = count;
                     playSound(400, 'sine', 0.1, 0.1);
                 } else {
                     clearInterval(cdInterval);
@@ -560,10 +595,10 @@
             gameTimer = setInterval(() => {
                 if (!gameActive) { clearInterval(gameTimer); return; }
                 if (selectedSessionTime > 3600) {
-                    document.getElementById('timer').innerText = "∞";
+                    document.getElementById('timer').textContent = "∞";
                 } else {
                     timeLeft--;
-                    document.getElementById('timer').innerText = `00:${timeLeft.toString().padStart(2, '0')}`;
+                    document.getElementById('timer').textContent = `00:${timeLeft.toString().padStart(2, '0')}`;
                     if (timeLeft <= 0) endSession();
                 }
             }, 1000);
@@ -576,8 +611,8 @@
             document.getElementById('settings-content').style.display = 'none';
             document.getElementById('results-content').style.display = 'block';
             document.getElementById('menu').style.display = 'block';
-            document.getElementById('res-score').innerText = score.toLocaleString();
-            document.getElementById('res-acc').innerText = "Accuracy: " + document.getElementById('accuracy').innerText;
+            document.getElementById('res-score').textContent = score.toLocaleString();
+            document.getElementById('res-acc').textContent = "Accuracy: " + document.getElementById('accuracy').textContent;
         }
 
         document.getElementById('startBtn').onclick = initiateStart;
@@ -589,7 +624,28 @@
 
         window.onmousedown = (e) => { if (e.button === 0) shoot(); };
         window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
-        function animate() { requestAnimationFrame(animate); targets.forEach(t => t.scale.lerp(new THREE.Vector3(1, 1, 1), 0.2)); renderer.render(scene, camera); }
+        
+        const targetScaleObj = new THREE.Vector3(1, 1, 1);
+        let lastTime = performance.now();
+        let frameCount = 0;
+        const fpsCounter = document.getElementById('fps-display');
+        
+        function animate() { 
+            requestAnimationFrame(animate); 
+            
+            if (showFps) {
+                frameCount++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    fpsCounter.textContent = frameCount + " FPS";
+                    frameCount = 0;
+                    lastTime = now;
+                }
+            }
+
+            targets.forEach(t => { if (t.scale.x < 0.99) t.scale.lerp(targetScaleObj, 0.2); }); 
+            renderer.render(scene, camera); 
+        }
         animate();
         setTheme('light');
     </script>
